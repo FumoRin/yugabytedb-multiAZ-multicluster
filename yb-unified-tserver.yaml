@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: yb-unified-tserver 
+  namespace: yb-system
+  labels:
+    component: yugabytedb
+spec:
+  ports:
+    # Port YSQL untuk akses PostgreSQL di YugabyteDB
+    - name: ysql
+      port: 5433
+      targetPort: 5433
+      protocol: TCP
+  selector:
+    # Selector untuk seluruh Pod YugabyteDB Tserver
+    app.kubernetes.io/name: yb-tserver
+    component: yugabytedb
+  # ClusterIP karena endpoint ini akan hanya diakses internal
+  type: ClusterIP
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: yb-unified-failover
+  namespace: yb-system
+spec:
+  # Host diarahkan ke Service YugabyteDB yb-unified-tserver
+  host: yb-unified-tserver.yb-system.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        # Batas maksimum koneksi TCP
+        maxConnections: 200
+        # Timeout koneksi agar lebih cepat mendeteksi kegagalan
+        connectTimeout: 5s
+
+    loadBalancer:
+      # Load Balancing berdasarkan koneksi aktif paling sedikit
+      simple: LEAST_CONN 
+      localityLbSetting:
+        # mengaktifkan fitur locality-aware load balancing
+        enabled: true
+        # Konfigurasi failover antar cluster
+        failover:
+          - from: id-orpheus
+            to: id-atlas
+          - from: id-atlas
+            to: id-orpheus
+
+    outlierDetection:
+      # Endpoint dikeluarkan dari tujuan Istio setelah gagal 3 kali
+      # untuk pengecekan error lebih cepat
+      consecutive5xxErrors: 3 
+      # Interval pengecekan
+      interval: 5s 
+      # Berapa lama endpoint akan dikeluarkan Istio sebelum 
+      # dimasukkan kembali
+      baseEjectionTime: 1m
+      # Berapa banyak endpoint yang bisa dikeluarkan Istio (%)
+      maxEjectionPercent: 80 
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: yugabytedb
+  namespace: yb-system
+spec:
+  hosts:
+  # Host Service YugabyteDB yb-unified-tserver
+  - yb-unified-tserver.yb-system.svc.cluster.local
+  tcp:
+  - match:
+    # Routing berdasarkan port YSQL
+    - port: 5433
+    route:
+    - destination:
+        # Traffic akan diarahkan 
+        host: yb-unified-tserver.yb-system.svc.cluster.local
+        port:
+          number: 5433
+

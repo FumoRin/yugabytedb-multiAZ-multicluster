@@ -1,0 +1,120 @@
+Image:
+  # Versi YugabyteDB
+  tag: 2025.2.0.0-b131 
+
+storage:
+  master:
+    # Jumlah dan besar volume untuk Master
+    count: 1    
+    size: 6Gi   
+  tserver:
+    # Jumlah dan besar volume untuk Tserver
+    count: 1    
+    size: 7Gi  
+
+resource:
+  master:
+    requests:   
+      # Alokasi minimal untuk sumber daya CPU dan RAM Master
+      cpu: 250m
+      memory: 384Mi
+    limits:     
+      # Batas penggunaan sumber daya CPU dan RAM Master
+      cpu: 250m
+      memory: 384Mi
+  tserver:
+    requests:   
+      # Alokasi minimal untuk sumber daya CPU dan RAM Tserver
+      cpu: 500m
+      memory: 512Mi
+    limits:     
+      # Batas penggunaan sumber daya CPU dan RAM Master Tserver
+      cpu: 750m
+      memory: 1Gi
+
+# Menyalakan fitur Multi Availability-Zone
+isMultiAz: true
+
+# Menyalakan TLS untuk komunikasi antar komponen YugabyteDB
+tls:
+  enabled: true
+  # Menonaktifkan TLS untuk client ke server
+  clientToServer: false
+
+# Menyalakan kompatibilitas Istio agar bisa membuat sidecar
+istioCompatibility:
+  enabled: true
+
+# Delay dalam melakukan pengecekan status sebelum semua 
+# Master terbuat dan berjalan
+master:
+  readinessProbe:
+    enabled: true
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 20
+
+# Delay dalam melakukan pengecekan status sebelum semua 
+# Tserver terbuat dan berjalan
+tserver:
+  readinessProbe:
+    enabled: true
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 20
+
+# Mematikan cara penamaan deployment Helm yang lama
+oldNamingStyle: false
+
+# Master Addresses agar semua deployment bisa berkomunikasi 
+# dan membuat sebuah cluster database
+masterAddresses: "orpheus-1-yb-master-0.orpheus.orpheus-1-yb-masters.yb-system.svc.clusterset.local:7100,orpheus-2-yb-master-0.orpheus.orpheus-2-yb-masters.yb-system.svc.clusterset.local:7100,atlas-1-yb-master-0.atlas.atlas-1-yb-masters.yb-system.svc.clusterset.local:7100"
+
+
+# Override untuk nama Deployment
+fullnameOverride: "atlas-1"
+
+# Jumlah replika untuk Master dan Tserver
+replicas:
+  master: 1
+  tserver: 3
+
+# Availability Zone yang dipilih untuk Deployment
+AZ: "id-atlas-1"
+
+# Konfigurasi gflags YugabyteDB Master dan Tserver
+gflags:
+  master:
+    # Identitas penempatan untuk Raft Placement
+    placement_cloud: "kubernetes"
+    placement_region: "id-atlas"
+    placement_zone: "id-atlas-1"
+    # Alamat RPC yang digunakan Master
+    rpc_bind_addresses: "0.0.0.0:7100"
+    # Alamat yang digunakan Master untuk mengumumkan dirinya
+    # Menggunakan DNS antar cluster
+    server_broadcast_addresses: "atlas-1-yb-master-0.atlas.atlas-1-yb-masters.yb-system.svc.clusterset.local:7100"
+    # Menonaktifkan penggunakan IP & DNS dalam cluster 
+    # Selalu menggunakan DNS antar cluster
+    use_private_ip: "never"
+  tserver: 
+    # Semua konfigurasi di Tserver Mirip seperti di Master
+    placement_cloud: "kubernetes"
+    placement_region: "id-atlas"
+    placement_zone: "id-atlas-1"
+    rpc_bind_addresses: "${HOSTNAME}.atlas.atlas-1-yb-tservers.yb-system.svc.clusterset.local:9100"
+    server_broadcast_addresses: "${HOSTNAME}.atlas.atlas-1-yb-tservers.yb-system.svc.clusterset.local:9100"
+    use_private_ip: "never"
+
+ybCleanup: {}
+
+multicluster:
+  # Membuat ServiceExport agar Service YugabyteDB
+  # Bisa di akses antar cluster
+  createServiceExports: true
+  # ClusterID yang diberikan saat konfigurasi Submariner
+  kubernetesClusterId: "atlas"
+
+

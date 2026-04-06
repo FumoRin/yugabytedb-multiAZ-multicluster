@@ -1,0 +1,101 @@
+Image:
+  tag: 2025.2.0.0-b131
+
+storage:
+  master:
+    count: 1
+    size: 6Gi
+  tserver:
+    count: 1
+    size: 7Gi
+
+resource:
+  master:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: 250m
+      memory: 384Mi
+  tserver:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 750m
+      memory: 1Gi
+
+isMultiAz: true
+
+tls:
+  enabled: true
+  clientToServer: false
+
+istioCompatibility:
+  enabled: true
+
+master:
+  readinessProbe:
+    enabled: true
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 20
+
+tserver:
+  readinessProbe:
+    enabled: true
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 20
+
+oldNamingStyle: false
+
+masterAddresses: "orpheus-1-yb-master-0.orpheus.orpheus-1-yb-masters.yb-system.svc.clusterset.local:7100,orpheus-2-yb-master-0.orpheus.orpheus-2-yb-masters.yb-system.svc.clusterset.local:7100,atlas-1-yb-master-0.atlas.atlas-1-yb-masters.yb-system.svc.clusterset.local:7100"
+
+# Override untuk nama Deployment
+fullnameOverride: "orpheus-2"
+
+# Jumlah replika untuk Master dan Tserver
+replicas:
+  master: 1
+  tserver: 2
+
+# Availability Zone yang dipilih untuk Deployment
+AZ: "id-orpheus-2"
+
+# Konfigurasi gflags YugabyteDB Master dan Tserver
+gflags:
+  master:
+    # Identitas penempatan untuk Raft Placement
+    placement_cloud: "kubernetes"
+    placement_region: "id-orpheus"
+    placement_zone: "id-orpheus-2"
+    # Alamat RPC yang digunakan Master
+    rpc_bind_addresses: "0.0.0.0:7100"
+    # Alamat yang digunakan Master untuk mengumumkan dirinya
+    # Menggunakan DNS antar cluster
+    server_broadcast_addresses: "orpheus-2-yb-master-0.orpheus.orpheus-2-yb-masters.yb-system.svc.clusterset.local:7100"
+    # Menonaktifkan penggunakan IP & DNS dalam cluster 
+    # Selalu menggunakan DNS antar cluster
+    use_private_ip: "never"
+  tserver: 
+    # Semua konfigurasi di Tserver Mirip seperti di Master
+    placement_cloud: "kubernetes"
+    placement_region: "id-orpheus"
+    placement_zone: "id-orpheus-2"
+    rpc_bind_addresses: "${HOSTNAME}.orpheus.orpheus-2-yb-tservers.yb-system.svc.clusterset.local:9100"
+    server_broadcast_addresses: "${HOSTNAME}.orpheus.orpheus-2-yb-tservers.yb-system.svc.clusterset.local:9100"
+    use_private_ip: "never"
+
+ybCleanup: {}
+
+multicluster:
+  # Membuat ServiceExport agar Service YugabyteDB
+  # Bisa di akses antar cluster
+  createServiceExports: true
+  # ClusterID yang diberikan saat konfigurasi Submariner
+  kubernetesClusterId: "orpheus"
+
+
